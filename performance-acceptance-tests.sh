@@ -196,13 +196,13 @@ echo "Logfile: $LOGFILE"
 TIMEFORMAT=%0R
 (
   while [ -z $FILENAME ];do
-    FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -$SIZE  | shuf -n1)
+    FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
     sleep 1
   done
   time (
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
-        FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -$SIZE  | shuf -n1)
+        FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
         dd if=$FILENAME of=/dev/null 2>/dev/null
