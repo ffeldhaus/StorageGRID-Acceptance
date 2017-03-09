@@ -138,7 +138,7 @@ if [ -n "$BRIDGES" ];then
       MOUNT_EXISTS=$(ssh $CLIENT mount | grep $EXPORT)
       if $DRY_RUN; then
         log "DRY_RUN" "ssh $CLIENT mkdir -p ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER"
-        log "DRY_RUN" "ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j"
+        log "DRY_RUN" "ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER"
       else
         ssh $CLIENT mkdir -p ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER
         ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j
@@ -186,7 +186,8 @@ EOF
 #!/bin/bash
 DOWNLOAD_COUNT=$1
 DOWNLOAD_SOURCE=$2
-LOGFILE=$3
+SIZE=$3
+LOGFILE=$4
 
 echo "Download count: $UPLOAD_COUNT"
 echo "Download source: $UPLOAD_DESTINATION"
@@ -194,10 +195,14 @@ echo "Logfile: $LOGFILE"
 
 TIMEFORMAT=%0R
 (
+  while [ -z $FILENAME ];do
+    FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -$FILE_SIZE  | shuf -n1)
+    sleep 1
+  done
   time (
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
-        FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f  | shuf -n1)
+        FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -$FILE_SIZE  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
         dd if=$FILENAME of=/dev/null 2>/dev/null
@@ -292,9 +297,9 @@ EOF
       DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$j.log
       log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
       if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $DOWNLOAD_LOGFILE\""
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
       else
-        ssh -f $CLIENT "screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $DOWNLOAD_LOGFILE"
+        ssh -f $CLIENT "screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
       fi
     done
   done
