@@ -437,7 +437,7 @@ TIMEFORMAT=%0R
       (
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        dd if=/dev/zero bs=1024k count=${SIZE}k | aws s3 cp - s3://$UPLOAD_DESTINATION/${SIZE}g${COUNT} --expected-size $(($SIZE * 1024 * 1024 * 1024)) --endpoint-url $S3_ENDPOINT --no-verify-ssl
+        dd if=/dev/zero bs=1024k count=${SIZE}k | aws s3 cp - s3://$UPLOAD_DESTINATION/${SIZE}g${COUNT} --expected-size $(($SIZE * 1024 * 1024 * 1024)) --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 | grep -v InsecureRequestWarning
         echo "$COUNT objects uploaded"
       )
     done 2>&1
@@ -470,7 +470,7 @@ TIMEFORMAT=%0R
         FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        aws s3 cp s3://$DOWNLOAD_SOURCE/${SIZE}g${COUNT} --expected-size $(($SIZE * 1024 * 1024 * 1024)) --endpoint-url $S3_ENDPOINT --no-verify-ssl > /dev/null
+        aws s3 cp s3://$DOWNLOAD_SOURCE/${SIZE}g${COUNT} - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null
         echo "$COUNT objects downloaded"
       )
     done 2>&1
