@@ -27,6 +27,13 @@ function usage {
     exit 1
 }
 
+function log {
+  LOG_DATE=$(date "+%Y-%m-%d-%H:%M:%S")
+  LOG_LEVEL=$(printf "%8s" $1)
+  LOG_MESSAGE=$2
+  echo -e "$LOG_DATE $LOG_LEVEL $LOG_MESSAGE" | tee -a $LOGFILE
+}
+
 while true; do
   case "$1" in
     -v | --verbose )          VERBOSE=true; shift ;;
@@ -53,13 +60,6 @@ if $HELP;then
     echo "This script expects that the clients specified via -c|--clients match the IP/hostname which is exported on the NAS Bridge\n"
   fi
 fi
-
-log() {
-  LOG_DATE=$(date "+%Y-%m-%d-%H:%M:%S")
-  LOG_LEVEL=$(printf "%8s" $1)
-  LOG_MESSAGE=$2
-  echo -e "$LOG_DATE $LOG_LEVEL $LOG_MESSAGE" | tee -a $LOGFILE
-}
 
 DATE=$(date "+%Y-%m-%d-%H%M")
 
@@ -467,10 +467,10 @@ TIMEFORMAT=%0R
   time (
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
-        FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f  | shuf -n1)
+        OBJECT=$(aws s3 ls $DOWNLOAD_SOURCE --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>/dev/null | awk '{print $4}'  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        aws s3 cp s3://$DOWNLOAD_SOURCE/${SIZE}g${COUNT} - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null
+        aws s3 cp s3://$DOWNLOAD_SOURCE/$OBJECT - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null | tee
         echo "$COUNT objects downloaded"
       )
     done 2>&1
