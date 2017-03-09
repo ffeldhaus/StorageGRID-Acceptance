@@ -134,7 +134,7 @@ if [ -n "$BRIDGES" ];then
     CLIENT=${CLIENTS[$(($i-1))]} 
     for j in $(seq 1 $BRIDGE_COUNT); do
       BRIDGE=${BRIDGES[$(($j-1))]}
-      EXPORT=$(ssh $CLIENT showmount -e $BRIDGE | grep / | tail -1 | awk '{ print $1 }')
+      EXPORT=$(ssh $CLIENT /usr/sbin/showmount -e $BRIDGE | grep / | tail -1 | awk '{ print $1 }')
       MOUNT_EXISTS=$(ssh $CLIENT mount | grep $EXPORT)
       if $DRY_RUN; then
         log "DRY_RUN" "ssh $CLIENT mkdir -p ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER"
