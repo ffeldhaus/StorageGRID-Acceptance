@@ -44,9 +44,9 @@ while true; do
     --upload-hours )          UPLOAD_HOURS="$2"; shift 2 ;;
     -d | --download-count )   DOWNLOAD_COUNT="$2"; shift 2 ;;
     --download-hours )        DOWNLOAD_HOURS="$2"; shift 2 ;;
-    -b | --bridges )          BRIDGES=(${2/,/ }); shift 2 ;;
+    -b | --bridges )          BRIDGES=(${2//,/ }); shift 2 ;;
     -e | --s3-endpoint )      S3_ENDPOINT="$2"; shift 2 ;;
-    -c | --clients )          CLIENTS=(${2/,/ }); shift 2 ;;
+    -c | --clients )          CLIENTS=(${2//,/ }); shift 2 ;;
     -o | --output-directory ) OUTPUT_DIRECTORY="$2"; shift ;;   
     -- ) shift; break ;;
     * ) break ;;
@@ -141,7 +141,7 @@ if [ -n "$BRIDGES" ];then
         log "DRY_RUN" "ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER"
       else
         ssh $CLIENT mkdir -p ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER
-        ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j
+        ssh $CLIENT mount -o rw,vers=3,rsize=1048576,wsize=1048576,hard,proto=tcp $BRIDGE:$EXPORT ${NASBRIDGE_MOUNTPOINT}$j/$TEST_FOLDER
       fi
     done
   done
@@ -370,13 +370,17 @@ EOF
   fi
 
   log "INFO" "Deleting files created during test"
-  if $DRY_RUN;then
-    log "DRY-RUN" "rm $NASBRIDGE_MOUNTPOINT/$TEST_FOLDER/${SIZE}g*"
-    log "DRY-RUN" "rmdir $NASBRIDGE_MOUNTPOINT/$TEST_FOLDER"
-  else
-    rm $NASBRIDGE_MOUNTPOINT/$TEST_FOLDER/${SIZE}g*
-    rmdir $NASBRIDGE_MOUNTPOINT/$TEST_FOLDER
-  fi
+  for i in $(seq 1 $BRIDGE_COUNT); do
+    CLIENT=${CLIENTS[$(($i-1))]}
+    BRIDGE=${BRIDGES[$(($i-1))]}
+    if $DRY_RUN;then
+      log "DRY-RUN" "ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/${SIZE}g*"
+      log "DRY-RUN" "ssh $CLIENT rmdir $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER"
+    else
+      ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/${SIZE}g*
+      ssh $CLIENT rmdir $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER
+    fi
+  done
 
   log "INFO" "Results have been written to $NFS_RESULTS"
 
