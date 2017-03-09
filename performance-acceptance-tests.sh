@@ -470,7 +470,7 @@ TIMEFORMAT=%0R
         OBJECT=$(aws s3 ls $DOWNLOAD_SOURCE --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>/dev/null | awk '{print $4}'  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        aws s3 cp s3://$DOWNLOAD_SOURCE/$OBJECT - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null | tee
+        aws s3 cp s3://$DOWNLOAD_SOURCE/$OBJECT - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null | tee | grep -v InsecureRequestWarning
         echo "$COUNT objects downloaded"
       )
     done 2>&1
