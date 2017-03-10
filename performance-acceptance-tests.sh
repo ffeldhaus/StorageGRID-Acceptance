@@ -243,9 +243,9 @@ EOF
       UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-download-difference-bridge-$i.log
       log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
       if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE 1 $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
       else
-        ssh -f $CLIENT "screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
+        ssh -f $CLIENT "screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE 1 $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
       fi
     done
 
