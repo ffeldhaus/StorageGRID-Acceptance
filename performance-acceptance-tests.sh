@@ -252,6 +252,7 @@ EOF
 
     log "INFO" "regularly check if upload has completed"
     if ! $DRY_RUN;then
+      COMPLETED_COUNT=0
       while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
         COMPLETED_COUNT=0
         sleep 10
@@ -309,6 +310,7 @@ EOF
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
+    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
       COMPLETED_COUNT=0
       sleep 10
@@ -326,6 +328,7 @@ EOF
 
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
+    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * ($BRIDGE_COUNT + 1 ) / 2 )) ]; do
       COMPLETED_COUNT=0
       sleep 10
@@ -520,6 +523,7 @@ EOF
 
     log "INFO" "regularly check if upload has completed"
     if ! $DRY_RUN;then
+      COMPLETED_COUNT=0
       while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
         COMPLETED_COUNT=0
         sleep 10
@@ -574,6 +578,7 @@ EOF
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
+    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
       COMPLETED_COUNT=0
       sleep 10
@@ -590,6 +595,7 @@ EOF
 
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
+    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
       COMPLETED_COUNT=0
       for i in $(seq 1 $CLIENT_COUNT); do
