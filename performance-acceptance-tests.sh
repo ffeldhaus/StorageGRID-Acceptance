@@ -111,9 +111,9 @@ if [ -n "$BRIDGES" ];then
     exit 1
   fi
 
-  DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT/$CLIENT_COUNT))
-  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT*$BRIDGE_COUNT*$CLIENT_COUNT)) ];then
-    log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges and clients. Please specify a download count which is a multiple of the number of bridges and clients!"
+  DOWNLOAD_COUNT_PER_BRIDGE=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT))
+  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE_*$BRIDGE_COUNT)) ];then
+    log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges. Please specify a download count which is a multiple of the number of bridges!"
     exit 1
   fi
    
@@ -248,14 +248,14 @@ EOF
     log "INFO" "regularly check if upload has completed"
     if ! $DRY_RUN;then
       COMPLETED_COUNT=0
-      while [ $COMPLETED_COUNT -lt $BRIDGE_COUNT ]; do
+      while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
         sleep 10
         for i in $(seq 1 $BRIDGE_COUNT); do
           CLIENT=${CLIENTS[$(($i-1))]}
           BRIDGE=${BRIDGES[$(($i-1))]}
           UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-download-difference-bridge-$i.log
           if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-           COMPLETED_COUNT=$((COMPLETED_COUNT+1))
+           COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
            log "INFO" "Upload to bridge $BRIDGE completed"
           fi
        done
@@ -292,29 +292,27 @@ EOF
 
   for i in $(seq 1 $CLIENT_COUNT); do
     CLIENT=${CLIENTS[$(($i-1))]} 
-    for j in $(seq 1 $BRIDGE_COUNT); do
-      BRIDGE=${BRIDGES[$(($j-1))]}
-      DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$j.log
-      log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
-      if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
-      else
-        ssh -f $CLIENT "screen -dm -S download-bridge-$j /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT $NASBRIDGE_MOUNTPOINT$j/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
-      fi
-    done
+    BRIDGE=${BRIDGES[$(($i-1))]}
+    DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
+    log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
+    if $DRY_RUN;then
+      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
+    else
+      ssh -f $CLIENT "screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
+    fi
   done
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
     COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $BRIDGE_COUNT ]; do
+    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
        CLIENT=${CLIENTS[$(($i-1))]}
        BRIDGE=${BRIDGES[$(($i-1))]}
        UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
        if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-         COMPLETED_COUNT=$((COMPLETED_COUNT+1))
+         COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
          log "INFO" "Upload to bridge $BRIDGE completed"
        fi
       done
@@ -324,16 +322,16 @@ EOF
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
     COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT*$CLIENT_COUNT)) ]; do
+    while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * ($BRIDGE_COUNT + 1 ) / 2) )) ]; do
+      sleep 10
       for i in $(seq 1 $CLIENT_COUNT); do
-       CLIENT=${CLIENTS[$(($i-1))]}
-       for j in $(seq 1 $BRIDGE_COUNT); do
-           BRIDGE=${BRIDGES[$(($j-1))]}
-           DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$j.log
-          if [[ $(ssh $CLIENT cat $DOWNLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-            COMPLETED_COUNT=$((COMPLETED_COUNT+1))
-            log "INFO" "Download of client $CLIENT from bridge $BRIDGE completed"
-          fi
+        CLIENT=${CLIENTS[$(($i-1))]}
+        BRIDGE=${BRIDGES[$(($i-1))]}
+        DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
+        if [[ $(ssh $CLIENT cat $DOWNLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
+          COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
+          log "INFO" "Download of client $CLIENT from bridge $BRIDGE completed"
+        fi
         done
       done
     done
@@ -357,15 +355,13 @@ EOF
   if ! $DRY_RUN;then
     for i in $(seq 1 $CLIENT_COUNT); do
     CLIENT=${CLIENTS[$(($i-1))]}
-    for j in $(seq 1 $BRIDGE_COUNT); do
-      BRIDGE=${BRIDGES[$(($j-1))]}
-      DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$j.log
-      DURATION=$(ssh $CLIENT cat $DOWNLOAD_LOGFILE | tail -1)
-      TOTAL=$(($DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT * $SIZE))
-      THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
-      echo "$CLIENT,$BRIDGE,download,$DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
-      log "INFO" "Downloaded $DOWNLOAD_COUNT_PER_BRIDGE_PER_CLIENT (${TOTAL}GB) files from bridge $BRIDGE in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
-    done
+    BRIDGE=${BRIDGES[$(($i-1))]}
+    DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
+    DURATION=$(ssh $CLIENT cat $DOWNLOAD_LOGFILE | tail -1)
+    TOTAL=$(($DOWNLOAD_COUNT_PER_BRIDGE * $SIZE))
+    THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
+    echo "$CLIENT,$BRIDGE,download,$DOWNLOAD_COUNT_PER_BRIDGE,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
+    log "INFO" "Downloaded $DOWNLOAD_COUNT_PER_BRIDGE (${TOTAL}GB) files from bridge $BRIDGE in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
    done
   fi
 
