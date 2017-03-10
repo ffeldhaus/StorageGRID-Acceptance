@@ -290,7 +290,7 @@ EOF
     fi
   done
 
-  for i in $(seq 1 $CLIENT_COUNT); do
+  for i in $(seq 1 $BRIDGE_COUNT); do
     CLIENT=${CLIENTS[$(($i-1))]} 
     BRIDGE=${BRIDGES[$(($i-1))]}
     DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
@@ -324,7 +324,7 @@ EOF
     COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * ($BRIDGE_COUNT + 1 ) / 2 )) ]; do
       sleep 10
-      for i in $(seq 1 $CLIENT_COUNT); do
+      for i in $(seq 1 $BRIDGE_COUNT); do
         CLIENT=${CLIENTS[$(($i-1))]}
         BRIDGE=${BRIDGES[$(($i-1))]}
         DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
