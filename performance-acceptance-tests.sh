@@ -352,7 +352,7 @@ EOF
 
   log "INFO" "collect download results"
   if ! $DRY_RUN;then
-    for i in $(seq 1 $CLIENT_COUNT); do
+    for i in $(seq 1 $BRIDGE_COUNT); do
     CLIENT=${CLIENTS[$(($i-1))]}
     BRIDGE=${BRIDGES[$(($i-1))]}
     DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
