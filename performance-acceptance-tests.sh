@@ -73,7 +73,6 @@ UPLOAD_TOTAL_GB=$(($UPLOAD_COUNT * $SIZE))
 DOWNLOAD_TOTAL_GB=$(($DOWNLOAD_COUNT * $SIZE))
 
 UPLOAD_DOWNLOAD_DIFFERENCE_COUNT=$(($DOWNLOAD_COUNT-$UPLOAD_COUNT))
-UPLOAD_START=$((UPLOAD_DOWNLOAD_DIFFERENCE_COUNT + 1))
 
 if ($VERBOSE);then 
   log "VERBOSE" "Verbose: $VERBOSE"
@@ -98,6 +97,8 @@ if [ -n "$BRIDGES" ];then
   TEST_FOLDER=$DATE-acceptance-tests
 
   BRIDGE_COUNT=${#BRIDGES[@]}
+
+  UPLOAD_START=$(((UPLOAD_DOWNLOAD_DIFFERENCE_COUNT / $BRIDGE_COUNT) + 1 ))
 
   if [ $CLIENT_COUNT -lt $BRIDGE_COUNT ]; then
     log "ERROR" "Only ${#CLIENTS[@]} clients specified, but at least $BRIDGE_COUNT required!"
@@ -251,8 +252,8 @@ EOF
 
     log "INFO" "regularly check if upload has completed"
     if ! $DRY_RUN;then
-      COMPLETED_COUNT=0
       while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
+        COMPLETED_COUNT=0
         sleep 10
         for i in $(seq 1 $BRIDGE_COUNT); do
           CLIENT=${CLIENTS[$(($i-1))]}
@@ -308,8 +309,8 @@ EOF
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
-    COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
+    while [ $COMPLETED_COUNT -lt $BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
+      COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
        CLIENT=${CLIENTS[$(($i-1))]}
@@ -325,8 +326,8 @@ EOF
 
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
-    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * ($BRIDGE_COUNT + 1 ) / 2 )) ]; do
+      COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
         CLIENT=${CLIENTS[$(($i-1))]}
@@ -519,8 +520,8 @@ EOF
 
     log "INFO" "regularly check if upload has completed"
     if ! $DRY_RUN;then
-      COMPLETED_COUNT=0
       while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
+        COMPLETED_COUNT=0
         sleep 10
         for i in $(seq 1 $CLIENT_COUNT); do
           CLIENT=${CLIENTS[$(($i-1))]}
@@ -573,8 +574,8 @@ EOF
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
-    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
+      COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $CLIENT_COUNT); do
         CLIENT=${CLIENTS[$(($i-1))]}
@@ -589,8 +590,8 @@ EOF
 
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
-    COMPLETED_COUNT=0
     while [ $COMPLETED_COUNT -lt $CLIENT_COUNT ]; do
+      COMPLETED_COUNT=0
       for i in $(seq 1 $CLIENT_COUNT); do
         CLIENT=${CLIENTS[$(($i-1))]}
         DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-client-$i.log
