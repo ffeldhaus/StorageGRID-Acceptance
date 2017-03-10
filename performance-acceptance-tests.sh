@@ -311,7 +311,7 @@ EOF
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
     COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
+    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
       COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
