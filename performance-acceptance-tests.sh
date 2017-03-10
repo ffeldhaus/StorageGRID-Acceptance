@@ -332,7 +332,6 @@ EOF
           COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
           log "INFO" "Download of client $CLIENT from bridge $BRIDGE completed"
         fi
-        done
       done
     done
   fi
