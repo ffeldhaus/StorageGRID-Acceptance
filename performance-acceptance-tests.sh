@@ -73,6 +73,7 @@ UPLOAD_TOTAL_GB=$(($UPLOAD_COUNT * $SIZE))
 DOWNLOAD_TOTAL_GB=$(($DOWNLOAD_COUNT * $SIZE))
 
 UPLOAD_DOWNLOAD_DIFFERENCE_COUNT=$(($DOWNLOAD_COUNT-$UPLOAD_COUNT))
+UPLOAD_START=$((UPLOAD_DOWNLOAD_DIFFERENCE_COUNT + 1))
 
 if ($VERBOSE);then 
   log "VERBOSE" "Verbose: $VERBOSE"
@@ -152,11 +153,13 @@ if [ -n "$BRIDGES" ];then
     cat << "EOF" > /tmp/upload-files.sh
 #!/bin/bash
 UPLOAD_COUNT=$1
-UPLOAD_DESTINATION=$2
-SIZE=$3
-LOGFILE=$4
+UPLOAD_START=$2
+UPLOAD_DESTINATION=$3
+SIZE=$4
+LOGFILE=$5
 
 echo "Upload count: $UPLOAD_COUNT"
+echo "Upload start: $UPLOAD_START"
 echo "Upload destination: $UPLOAD_DESTINATION"
 echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
@@ -164,7 +167,7 @@ echo "Logfile: $LOGFILE"
 TIMEFORMAT=%0R
 (
   time (
-    for COUNT in $(seq -w 1 $UPLOAD_COUNT);do 
+    for COUNT in $(seq -w $UPLOAD_START $(($UPLOAD_COUNT + $UPLOAD_START - 1)) );do 
       (
         date '+%Y-%m-%d %H:%M:%S'
         set -x
@@ -189,8 +192,9 @@ DOWNLOAD_SOURCE=$2
 SIZE=$3
 LOGFILE=$4
 
-echo "Download count: $UPLOAD_COUNT"
-echo "Download source: $UPLOAD_DESTINATION"
+echo "Download count: $DOWNLOAD_COUNT"
+echo "Download source: $DOWNLOAD_SOURCE"
+echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
 
 TIMEFORMAT=%0R
@@ -284,9 +288,9 @@ EOF
     UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
     log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
     if $DRY_RUN;then
-      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
+      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $UPLOAD_START $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
     else
-      ssh -f $CLIENT "screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
+      ssh -f $CLIENT "screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
     fi
   done
 
