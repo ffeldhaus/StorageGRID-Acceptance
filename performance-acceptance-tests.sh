@@ -112,7 +112,7 @@ if [ -n "$BRIDGES" ];then
   fi
 
   DOWNLOAD_COUNT_PER_BRIDGE=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT))
-  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE_*$BRIDGE_COUNT)) ];then
+  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE * $BRIDGE_COUNT)) ];then
     log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges. Please specify a download count which is a multiple of the number of bridges!"
     exit 1
   fi
