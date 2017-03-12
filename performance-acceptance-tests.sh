@@ -114,12 +114,6 @@ if [ -n "$BRIDGES" ];then
     log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges. Please specify a download count which is a multiple of the number of bridges!"
     exit 1
   fi
-   
-  UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE=$(($UPLOAD_DOWNLOAD_DIFFERENCE_COUNT/$BRIDGE_COUNT))
-  if [ $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT != $(($UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE*$BRIDGE_COUNT)) ];then
-    log "ERROR" "Requested difference between upload and download count cannot be equally distributed to all NAS Bridges. Please specify an upload and download count where the difference is a multiple of the number of bridges!"
-    exit 1
-  fi
 
   log "INFO" "REQUIREMENT 1: File size is ${SIZE}GB"
 
