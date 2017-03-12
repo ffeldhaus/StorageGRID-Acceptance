@@ -72,8 +72,6 @@ CLIENT_COUNT=${#CLIENTS[@]}
 UPLOAD_TOTAL_GB=$(($UPLOAD_COUNT * $SIZE))
 DOWNLOAD_TOTAL_GB=$(($DOWNLOAD_COUNT * $SIZE))
 
-UPLOAD_DOWNLOAD_DIFFERENCE_COUNT=$(($DOWNLOAD_COUNT-$UPLOAD_COUNT))
-
 if ($VERBOSE);then 
   log "VERBOSE" "Verbose: $VERBOSE"
   log "VERBOSE" "Help: $HELP"
@@ -97,8 +95,6 @@ if [ -n "$BRIDGES" ];then
   TEST_FOLDER=$DATE-acceptance-tests
 
   BRIDGE_COUNT=${#BRIDGES[@]}
-
-  UPLOAD_START=$(((UPLOAD_DOWNLOAD_DIFFERENCE_COUNT / $BRIDGE_COUNT) + 1 ))
 
   if [ $CLIENT_COUNT -lt $BRIDGE_COUNT ]; then
     log "ERROR" "Only ${#CLIENTS[@]} clients specified, but at least $BRIDGE_COUNT required!"
@@ -154,10 +150,9 @@ if [ -n "$BRIDGES" ];then
     cat << "EOF" > /tmp/upload-files.sh
 #!/bin/bash
 UPLOAD_COUNT=$1
-UPLOAD_START=$2
-UPLOAD_DESTINATION=$3
-SIZE=$4
-LOGFILE=$5
+UPLOAD_DESTINATION=$2
+SIZE=$3
+LOGFILE=$4
 
 echo "Upload count: $UPLOAD_COUNT"
 echo "Upload start: $UPLOAD_START"
@@ -168,7 +163,7 @@ echo "Logfile: $LOGFILE"
 TIMEFORMAT=%0R
 (
   time (
-    for COUNT in $(seq -w $UPLOAD_START $(($UPLOAD_COUNT + $UPLOAD_START - 1)) );do 
+    for COUNT in $(seq -w 1 $UPLOAD_COUNT );do 
       (
         date '+%Y-%m-%d %H:%M:%S'
         set -x
@@ -240,63 +235,17 @@ EOF
 
   echo "client,bridge,operation,count,duration (seconds),throughput (MB/s),file size (GB),total (GB)" > $NFS_RESULTS
 
-  if [ $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT -gt 0 ];then
-    log "INFO" "INITIALIZATION: upload difference of ${UPLOAD_DOWNLOAD_DIFFERENCE_COUNT} files to each bridge"
-    for i in $(seq 1 $BRIDGE_COUNT); do
-      CLIENT=${CLIENTS[$(($i-1))]}
-      BRIDGE=${BRIDGES[$(($i-1))]}
-      UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-download-difference-bridge-$i.log
-      log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
-      if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE 1 $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
-      else
-        ssh -f $CLIENT "screen -dm -S upload-download-difference-bridge-$i /tmp/upload-files.sh $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE 1 $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
-      fi
-    done
 
-    log "INFO" "regularly check if upload has completed"
-    if ! $DRY_RUN;then
-      COMPLETED_COUNT=0
-      while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
-        COMPLETED_COUNT=0
-        sleep 10
-        for i in $(seq 1 $BRIDGE_COUNT); do
-          CLIENT=${CLIENTS[$(($i-1))]}
-          BRIDGE=${BRIDGES[$(($i-1))]}
-          UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-download-difference-bridge-$i.log
-          if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-           COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
-           log "INFO" "Upload to bridge $BRIDGE completed"
-          fi
-       done
-     done
-    fi
-
-    log "INFO" "collect results"
-    if ! $DRY_RUN;then
-     for i in $(seq 1 $BRIDGE_COUNT); do
-       CLIENT=${CLIENTS[$(($i-1))]}
-       BRIDGE=${BRIDGES[$(($i-1))]}
-       UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-download-difference-bridge-$i.log
-       DURATION=$(ssh $CLIENT cat $UPLOAD_LOGFILE | tail -1)
-       TOTAL=$(($UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE * $SIZE))
-       THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
-       echo "$CLIENT,$BRIDGE,upload,$UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
-       log "INFO" "Uploaded $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_BRIDGE (${TOTAL}GB) files to bridge $BRIDGE in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
-     done
-    fi
-  fi
-
-  log "INFO" "RUN: Upload $UPLOAD_COUNT files of size ${SIZE}GB and in parallel download $DOWNLOAD_COUNT files"
+  log "INFO" "Upload $UPLOAD_COUNT files of size ${SIZE}GB and in parallel download $DOWNLOAD_COUNT files"
   for i in $(seq 1 $BRIDGE_COUNT); do
     CLIENT=${CLIENTS[$(($i-1))]}
     BRIDGE=${BRIDGES[$(($i-1))]}
     UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
     log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
     if $DRY_RUN;then
-      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $UPLOAD_START $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
+      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
     else
-      ssh -f $CLIENT "screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
+      ssh -f $CLIENT "screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
     fi
   done
 
@@ -415,12 +364,6 @@ if [ -n "$S3_ENDPOINT" ];then
   DOWNLOAD_COUNT_PER_CLIENT=$(($DOWNLOAD_COUNT / $CLIENT_COUNT))
   if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_CLIENT * $CLIENT_COUNT)) ];then
     log "ERROR" "Requested download count cannot be equally distributed to all clients. Please specify a download count which is a multiple of the number of clients!"
-    exit 1
-  fi
-   
-  UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_CLIENT=$(($UPLOAD_DOWNLOAD_DIFFERENCE_COUNT / $CLIENT_COUNT))
-  if [ $UPLOAD_DOWNLOAD_DIFFERENCE_COUNT != $(($UPLOAD_DOWNLOAD_DIFFERENCE_COUNT_PER_CLIENT * $CLIENT_COUNT)) ];then
-    log "ERROR" "Requested difference between upload and download count cannot be equally distributed to all clients. Please specify an upload and download count where the difference is a multiple of the number of clients!"
     exit 1
   fi
 
