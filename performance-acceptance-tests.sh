@@ -159,10 +159,9 @@ TIMEFORMAT=%0R
   time (
     for COUNT in $(seq -w 1 $UPLOAD_COUNT );do 
       (
-        date '+%Y-%m-%d %H:%M:%S'
-        set -x
-        dd if=/dev/zero of=${UPLOAD_DESTINATION}/${SIZE}g${COUNT} bs=1024k count=${SIZE}k 
-        echo "$COUNT files uploaded"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Starting upload"
+        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${SIZE}g${COUNT} bs=1024k count=${SIZE}k )
+        echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files uploaded"
       )
     done 2>&1
     echo "FINISHED"
@@ -178,33 +177,34 @@ EOF
     cat << "EOF" > /tmp/download-files.sh
 #!/bin/bash
 DOWNLOAD_COUNT=$1
-DOWNLOAD_SOURCE=$2
-SIZE=$3
-LOGFILE=$4
+UPLOAD_COUNT=$2
+DOWNLOAD_SOURCE=$3
+SIZE=$4
+LOGFILE=$5
 
 echo "Download count: $DOWNLOAD_COUNT"
+echo "Upload count: $UPLOAD_COUNT"
 echo "Download source: $DOWNLOAD_SOURCE"
 echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
 
 TIMEFORMAT=%0R
 (
-  while [ -z $FILENAME ];do
-    FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
-    sleep 1
-  done
   time (
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
         unset FILENAME
         while [ -z $FILENAME ];do
-          FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
+          if [ $COUNT -le $UPLOAD_COUNT ];do
+            FILENAME=$(ls $DOWNLOAD_SOURCE/${SIZE}g${COUNT} 2> /dev/null)
+          else
+            FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
+          fi
           sleep 1
         done
-        date '+%Y-%m-%d %H:%M:%S'
-        set -x
-        dd if=$FILENAME of=/dev/null 2>/dev/null
-        echo "$COUNT files downloaded"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
+        ( set -x;dd if=$FILENAME of=/dev/null 2>/dev/null )
+        echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
       )
     done 2>&1
     echo "FINISHED"
@@ -249,9 +249,9 @@ EOF
     DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
     log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
     if $DRY_RUN;then
-      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
+      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
     else
-      ssh -f $CLIENT "screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
+      ssh -f $CLIENT "screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
     fi
   done
 
