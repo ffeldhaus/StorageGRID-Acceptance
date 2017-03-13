@@ -203,7 +203,7 @@ TIMEFORMAT=%0R
           sleep 1
         done
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
-        ( set -x;dd if=$FILENAME of=/dev/null 2>/dev/null )
+        ( set -x;dd if=$FILENAME of=/dev/null )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
       )
     done 2>&1
