@@ -195,7 +195,7 @@ TIMEFORMAT=%0R
       (
         unset FILENAME
         while [ -z $FILENAME ];do
-          if [ $COUNT -le $UPLOAD_COUNT ];do
+          if [ $COUNT -le $UPLOAD_COUNT ];then
             FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
           else
             FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G  | shuf -n1)
