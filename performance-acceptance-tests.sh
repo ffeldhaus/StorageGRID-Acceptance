@@ -198,7 +198,7 @@ TIMEFORMAT=%0R
           if [ $COUNT -le $UPLOAD_COUNT ];then
             FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
           else
-            FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G -printf '%T@ %p\n' | sort -n | tail -25 | cut -f2- -d" " | shuf -n1)
+            FILENAME=$(find $DOWNLOAD_SOURCE -maxdepth 1 -type f -not -size -${SIZE}G -printf '%T@ %p\n' | sort -n | tail -20 | cut -f2- -d" " | shuf -n1 )
           fi
           sleep 1
         done
