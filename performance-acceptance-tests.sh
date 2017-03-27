@@ -332,10 +332,10 @@ EOF
   log "INFO" "collect download results"
   if ! $DRY_RUN;then
     for i in $(seq 1 $BRIDGE_COUNT); do
-      for WORKER in $(seq 1 $WORKER); do
+      for WORKER in $(seq 1 $WORKER_COUNT); do
         CLIENT=${CLIENTS[$(($i-1))]}
         BRIDGE=${BRIDGES[$(($i-1))]}
-        DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
+        DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i-worker-$WORKER.log
         DURATION=$(ssh $CLIENT cat $DOWNLOAD_LOGFILE | tail -1)
         TOTAL=$(($DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER * $SIZE))
         THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
