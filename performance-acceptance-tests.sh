@@ -266,9 +266,9 @@ EOF
       PREFIX="bridge$i-worker$WORKER-size"
       log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
       if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE\""
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE\""
       else
-        ssh -f $CLIENT "screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE"
+        ssh -f $CLIENT "screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE"
       fi
     done
   done
