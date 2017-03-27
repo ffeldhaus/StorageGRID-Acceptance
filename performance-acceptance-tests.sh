@@ -2,16 +2,17 @@
 ### Copyright 2017 NetApp Deutschland GmbH
 ### Author: Florian Feldhaus
 
-OPTS=`getopt -n 'parse-options' -o vhnsudbeco: --long verbose,help,dry-run,size:,upload-count:,upload-hours:,download-count:,download-hours:,bridges:,s3-endpoint:,clients:,output-directory:,worker: -- "$@"`
+OPTS=`getopt -n 'parse-options' -o vhns:u:d:b:e:c:o:w: --long verbose,help,dry-run,size:,upload-count:,upload-hours:,download-count:,download-hours:,bridges:,s3-endpoint:,clients:,output-directory:,worker: -- "$@"`
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
 VERBOSE=false
 HELP=false
 DRY_RUN=false
 OUTPUT_DIRECTORY=/tmp
+WORKER_COUNT=1
 
 function usage {
-    echo "Usage: $0 [-vhn] -s|--size size -u|--upload-count count [--upload-hours hours] -d|--download-count count [--download-hours hours] -b|--nas-bridges bridge,bridge -e|--s3-endpoint s3-endpoint-uri -c|--clients client,client [-o|--output-directory path]"
+    echo "Usage: $0 [-vhn] -s|--size size -u|--upload-count count [--upload-hours hours] -d|--download-count count [--download-hours hours] -b|--nas-bridges bridge,bridge -e|--s3-endpoint s3-endpoint-uri -c|--clients client,client [-o|--output-directory path] [-w|--worker count]"
     echo "  -v|--verbose                 verbose"
     echo "  -h|--help                    show this message"
     echo "  -n|--dry-run                 show but do not execute commands"
@@ -32,7 +33,6 @@ function log {
   LOG_DATE=$(date "+%Y-%m-%d-%H:%M:%S")
   LOG_LEVEL=$(printf "%8s" $1)
   LOG_MESSAGE=$2
-  WORKER_COUNT=1
   echo -e "$LOG_DATE $LOG_LEVEL $LOG_MESSAGE" | tee -a $LOGFILE
 }
 
@@ -49,8 +49,8 @@ while true; do
     -b | --bridges )          BRIDGES=(${2//,/ }); shift 2 ;;
     -e | --s3-endpoint )      S3_ENDPOINT="$2"; shift 2 ;;
     -c | --clients )          CLIENTS=(${2//,/ }); shift 2 ;;
-    -o | --output-directory ) OUTPUT_DIRECTORY="$2"; shift ;;   
-    -w | --worker )           WORKER_COUNT="$2"; shift ;;   
+    -o | --output-directory ) OUTPUT_DIRECTORY="$2"; shift 2;;   
+    -w | --worker )           WORKER_COUNT="$2"; shift 2;;   
     -- ) shift; break ;;
     * ) break ;;
   esac
