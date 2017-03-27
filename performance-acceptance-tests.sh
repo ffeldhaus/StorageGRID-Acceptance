@@ -2,7 +2,7 @@
 ### Copyright 2017 NetApp Deutschland GmbH
 ### Author: Florian Feldhaus
 
-OPTS=`getopt -n 'parse-options' -o vhnsudbeco: --long verbose,help,dry-run,size:,upload-count:,upload-hours:,download-count:,download-hours:,bridges:,s3-endpoint:,clients:,output-directory: -- "$@"`
+OPTS=`getopt -n 'parse-options' -o vhnsudbeco: --long verbose,help,dry-run,size:,upload-count:,upload-hours:,download-count:,download-hours:,bridges:,s3-endpoint:,clients:,output-directory:,worker: -- "$@"`
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
 VERBOSE=false
@@ -24,6 +24,7 @@ function usage {
     echo "  -e|--s3-endpoint uri         URI of the S3 endpoint consisting of protocol, hostname and port (e.g. https://s3.example.com:8082)"
     echo "  -c|--clients client,client   list of clients to be used for uploading and downloading files"
     echo "  -o|--output-directory path   output directory to be used for storing logfiles and result"
+    echo "  -w|--worker count            number of parallel up and downloads per bridge"
     exit 1
 }
 
@@ -31,6 +32,7 @@ function log {
   LOG_DATE=$(date "+%Y-%m-%d-%H:%M:%S")
   LOG_LEVEL=$(printf "%8s" $1)
   LOG_MESSAGE=$2
+  WORKER=1
   echo -e "$LOG_DATE $LOG_LEVEL $LOG_MESSAGE" | tee -a $LOGFILE
 }
 
@@ -48,6 +50,7 @@ while true; do
     -e | --s3-endpoint )      S3_ENDPOINT="$2"; shift 2 ;;
     -c | --clients )          CLIENTS=(${2//,/ }); shift 2 ;;
     -o | --output-directory ) OUTPUT_DIRECTORY="$2"; shift ;;   
+    -w | --worker )           WORKER_COUNT="$2"; shift ;;   
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -72,6 +75,8 @@ CLIENT_COUNT=${#CLIENTS[@]}
 UPLOAD_TOTAL_GB=$(($UPLOAD_COUNT * $SIZE))
 DOWNLOAD_TOTAL_GB=$(($DOWNLOAD_COUNT * $SIZE))
 
+UPLOAD_DOWNLOAD_DIGIT_COUNT=$(( ${#UPLOAD_COUNT} > ${#DOWNLOAD_COUNT} ? ${#UPLOAD_COUNT} : ${#DOWNLOAD_COUNT} ))
+
 if ($VERBOSE);then 
   log "VERBOSE" "Verbose: $VERBOSE"
   log "VERBOSE" "Help: $HELP"
@@ -86,6 +91,7 @@ if ($VERBOSE);then
   log "VERBOSE" "NAS Bridges: ${BRIDGES[@]}"
   log "VERBOSE" "S3 Endpoint: $S3_ENDPOINT"
   log "VERBOSE" "Clients: ${CLIENTS[@]}"
+  log "VERBOSE" "Worker: $WORKER_COUNT"
 fi
 
 if [ -n "$BRIDGES" ];then
@@ -103,17 +109,19 @@ if [ -n "$BRIDGES" ];then
 
   NASBRIDGE_MOUNTPOINT=/mnt/nasbridge
 
-  UPLOAD_COUNT_PER_BRIDGE=$(($UPLOAD_COUNT/$BRIDGE_COUNT))
-  if [ $UPLOAD_COUNT != $(($UPLOAD_COUNT_PER_BRIDGE*$BRIDGE_COUNT)) ];then
-    log "ERROR" "Requested upload count cannot be equally distributed to all NAS Bridges. Please specify an upload count which is a multiple of the number of bridges!"
+  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($UPLOAD_COUNT/$BRIDGE_COUNT/$WORKER_COUNT))
+  if [ $UPLOAD_COUNT != $(($UPLOAD_COUNT_PER_BRIDGE*$BRIDGE_COUNT*$WORKER_COUNT)) ];then
+    log "ERROR" "Requested upload count cannot be equally distributed to all NAS Bridges and workers. Please specify an upload count which is a multiple of the number of bridges and workers!"
     exit 1
   fi
+  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $UPLOAD_COUNT_PER_BRIDGE)
 
-  DOWNLOAD_COUNT_PER_BRIDGE=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT))
+  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT/$WORKER_COUNT))
   if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE * $BRIDGE_COUNT)) ];then
-    log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges. Please specify a download count which is a multiple of the number of bridges!"
+    log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges and workers. Please specify a download count which is a multiple of the number of bridges nad workers!"
     exit 1
   fi
+  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $DOWNLOAD_COUNT_PER_BRIDGE)
 
   log "INFO" "REQUIREMENT 1: File size is ${SIZE}GB"
 
@@ -145,12 +153,14 @@ if [ -n "$BRIDGES" ];then
 #!/bin/bash
 UPLOAD_COUNT=$1
 UPLOAD_DESTINATION=$2
-SIZE=$3
-LOGFILE=$4
+PREFIX=$3
+SIZE=$4
+LOGFILE=$5
 
 echo "Upload count: $UPLOAD_COUNT"
 echo "Upload start: $UPLOAD_START"
 echo "Upload destination: $UPLOAD_DESTINATION"
+echo "Prefix: $PREFIX"
 echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
 
@@ -160,7 +170,7 @@ TIMEFORMAT=%0R
     for COUNT in $(seq -w 1 $UPLOAD_COUNT );do 
       (
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting upload"
-        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${SIZE}g${COUNT} bs=1024k count=${SIZE}k )
+        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${PREFIX}${SIZE}g${COUNT} bs=1024k count=${SIZE}k )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files uploaded"
       )
     done 2>&1
@@ -179,12 +189,14 @@ EOF
 DOWNLOAD_COUNT=$1
 UPLOAD_COUNT=$2
 DOWNLOAD_SOURCE=$3
-SIZE=$4
-LOGFILE=$5
+PREFIX=$4
+SIZE=$5
+LOGFILE=$6
 
 echo "Download count: $DOWNLOAD_COUNT"
 echo "Upload count: $UPLOAD_COUNT"
 echo "Download source: $DOWNLOAD_SOURCE"
+echo "Prefix: $PREFIX"
 echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
 
@@ -198,7 +210,7 @@ TIMEFORMAT=%0R
           if [ $COUNT -le $UPLOAD_COUNT ];then
             FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
           else
-            FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g$(seq -w $((UPLOAD_COUNT - 20))  $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
+            FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
           fi
           sleep 1
         done
@@ -227,48 +239,56 @@ EOF
     fi
   done
 
-  echo "client,bridge,operation,count,duration (seconds),throughput (MB/s),file size (GB),total (GB)" > $NFS_RESULTS
+  echo "client,bridge,worker,operation,count,duration (seconds),throughput (MB/s),file size (GB),total (GB)" > $NFS_RESULTS
 
 
   log "INFO" "Upload $UPLOAD_COUNT files of size ${SIZE}GB and in parallel download $DOWNLOAD_COUNT files"
   for i in $(seq 1 $BRIDGE_COUNT); do
-    CLIENT=${CLIENTS[$(($i-1))]}
-    BRIDGE=${BRIDGES[$(($i-1))]}
-    UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
-    log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
-    if $DRY_RUN;then
-      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE\""
-    else
-      ssh -f $CLIENT "screen -dm -S upload-bridge-$i /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $UPLOAD_LOGFILE"
-    fi
+    for WORKER in $(seq 1 $WORKER_COUNT); do
+      CLIENT=${CLIENTS[$(($i-1))]}
+      BRIDGE=${BRIDGES[$(($i-1))]}
+      PREFIX="bridge$BRIDGE-worker$WORKER-size"
+      UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i-worker-$WORKER.log
+      log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
+      if $DRY_RUN;then
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S upload-bridge-$i-worker-$WORKER /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $UPLOAD_LOGFILE\""
+      else
+        ssh -f $CLIENT "screen -dm -S upload-bridge-$i-worker-$WORKER /tmp/upload-files.sh $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $UPLOAD_LOGFILE"
+      fi
+    done
   done
 
   for i in $(seq 1 $BRIDGE_COUNT); do
-    CLIENT=${CLIENTS[$(($i-1))]} 
-    BRIDGE=${BRIDGES[$(($i-1))]}
-    DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
-    log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
-    if $DRY_RUN;then
-      log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE\""
-    else
-      ssh -f $CLIENT "screen -dm -S download-bridge-$i /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $SIZE $DOWNLOAD_LOGFILE"
-    fi
+    for WORKER in $(seq 1 $WORKER_COUNT); do
+      CLIENT=${CLIENTS[$(($i-1))]} 
+      BRIDGE=${BRIDGES[$(($i-1))]}
+      DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i-worker-$WORKER.log
+      PREFIX="bridge$BRIDGE-worker$WORKER-size"
+      log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
+      if $DRY_RUN;then
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE\""
+      else
+        ssh -f $CLIENT "screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE"
+      fi
+    done
   done
 
   log "INFO" "regularly check if uploads have completed"
   if ! $DRY_RUN;then
     COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * ($BRIDGE_COUNT + 1) / 2)) ]; do
+    while [ $COMPLETED_COUNT -lt $(($BRIDGE_COUNT * $WORKER_COUNT)) ]; do
       COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
-       CLIENT=${CLIENTS[$(($i-1))]}
-       BRIDGE=${BRIDGES[$(($i-1))]}
-       UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
-       if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-         COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
-         log "INFO" "Upload to bridge $BRIDGE completed"
-       fi
+        for WORKER in $(seq 1 $WORKER_COUNT); do
+          CLIENT=${CLIENTS[$(($i-1))]}
+          BRIDGE=${BRIDGES[$(($i-1))]}
+          UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i-worker-$WORKER.log
+          if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
+            COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
+            log "INFO" "Upload of worker $WORKER to bridge $BRIDGE completed"
+          fi
+        done
       done
     done
   fi
@@ -276,17 +296,19 @@ EOF
   log "INFO" "regularly check if downloads have completed"
   if ! $DRY_RUN;then
     COMPLETED_COUNT=0
-    while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * ($BRIDGE_COUNT + 1 ) / 2 )) ]; do
+    while [ $COMPLETED_COUNT -lt $(( $BRIDGE_COUNT * $WORKER_COUNT )) ]; do
       COMPLETED_COUNT=0
       sleep 10
       for i in $(seq 1 $BRIDGE_COUNT); do
-        CLIENT=${CLIENTS[$(($i-1))]}
-        BRIDGE=${BRIDGES[$(($i-1))]}
-        DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
-        if [[ $(ssh $CLIENT cat $DOWNLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-          COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
-          log "INFO" "Download of client $CLIENT from bridge $BRIDGE completed"
-        fi
+        for WORKER in $(seq 1 $WORKER_COUNT); do
+          CLIENT=${CLIENTS[$(($i-1))]}
+          BRIDGE=${BRIDGES[$(($i-1))]}
+          DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i-worker-$WORKER.log
+          if [[ $(ssh $CLIENT cat $DOWNLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
+            COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
+            log "INFO" "Download by worker $WORKER on client $CLIENT from bridge $BRIDGE completed"
+          fi
+        done
       done
     done
   fi
@@ -294,29 +316,33 @@ EOF
   log "INFO" "collect upload results"
   if ! $DRY_RUN;then
     for i in $(seq 1 $BRIDGE_COUNT); do
-      CLIENT=${CLIENTS[$(($i-1))]}
-      BRIDGE=${BRIDGES[$(($i-1))]}
-      UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i.log
-      DURATION=$(ssh $CLIENT cat $UPLOAD_LOGFILE | tail -1)
-      TOTAL=$(($UPLOAD_COUNT_PER_BRIDGE * $SIZE))
-      THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
-      echo "$CLIENT,$BRIDGE,upload,$UPLOAD_COUNT_PER_BRIDGE,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
-      log "INFO" "Uploaded $UPLOAD_COUNT_PER_BRIDGE (${TOTAL}GB) files to bridge $BRIDGE in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
+      for WORKER in $(seq 1 $WORKER_COUNT); do
+        CLIENT=${CLIENTS[$(($i-1))]}
+        BRIDGE=${BRIDGES[$(($i-1))]}
+        UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i-worker-$WORKER.log
+        DURATION=$(ssh $CLIENT cat $UPLOAD_LOGFILE | tail -1)
+        TOTAL=$(($UPLOAD_COUNT_PER_BRIDGE_PER_WORKER * $SIZE))
+        THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
+        echo "$CLIENT,$BRIDGE,$WORKER,upload,$UPLOAD_COUNT_PER_BRIDGE_PER_WORKER,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
+        log "INFO" "Uploaded $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER (${TOTAL}GB) files to bridge $BRIDGE by worker $WORKER in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
+      done
     done
   fi
 
   log "INFO" "collect download results"
   if ! $DRY_RUN;then
     for i in $(seq 1 $BRIDGE_COUNT); do
-    CLIENT=${CLIENTS[$(($i-1))]}
-    BRIDGE=${BRIDGES[$(($i-1))]}
-    DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
-    DURATION=$(ssh $CLIENT cat $DOWNLOAD_LOGFILE | tail -1)
-    TOTAL=$(($DOWNLOAD_COUNT_PER_BRIDGE * $SIZE))
-    THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
-    echo "$CLIENT,$BRIDGE,download,$DOWNLOAD_COUNT_PER_BRIDGE,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
-    log "INFO" "Downloaded $DOWNLOAD_COUNT_PER_BRIDGE (${TOTAL}GB) files from bridge $BRIDGE in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
-   done
+      for WORKER in $(seq 1 $WORKER); do
+        CLIENT=${CLIENTS[$(($i-1))]}
+        BRIDGE=${BRIDGES[$(($i-1))]}
+        DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i.log
+        DURATION=$(ssh $CLIENT cat $DOWNLOAD_LOGFILE | tail -1)
+        TOTAL=$(($DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER * $SIZE))
+        THROUGHPUT=$(echo "scale=3;$TOTAL*1024/$DURATION" | bc)
+        echo "$CLIENT,$BRIDGE,$WORKER,download,$DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER,$DURATION,$THROUGHPUT,$SIZE,$TOTAL" >> $NFS_RESULTS
+        log "INFO" "Downloaded $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER (${TOTAL}GB) files from bridge $BRIDGE by worker $WORKER in $DURATION seconds with a throughput of $THROUGHPUT MBytes/s"
+      done
+    done
   fi
 
   log "INFO" "Deleting files created during test"
@@ -324,10 +350,10 @@ EOF
     CLIENT=${CLIENTS[$(($i-1))]}
     BRIDGE=${BRIDGES[$(($i-1))]}
     if $DRY_RUN;then
-      log "DRY-RUN" "ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/${SIZE}g*"
+      log "DRY-RUN" "ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/*${SIZE}g*"
       log "DRY-RUN" "ssh $CLIENT rmdir $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER"
     else
-      ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/${SIZE}g*
+      ssh $CLIENT rm $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER/*${SIZE}g*
       ssh $CLIENT rmdir $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER
     fi
   done
