@@ -114,14 +114,14 @@ if [ -n "$BRIDGES" ];then
     log "ERROR" "Requested upload count cannot be equally distributed to all NAS Bridges and workers. Please specify an upload count which is a multiple of the number of bridges and workers!"
     exit 1
   fi
-  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $UPLOAD_COUNT_PER_BRIDGE)
+  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER)
 
   DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($DOWNLOAD_COUNT / $BRIDGE_COUNT / $WORKER_COUNT))
   if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER * $BRIDGE_COUNT * $WORKER_COUNT)) ];then
     log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges and workers. Please specify a download count which is a multiple of the number of bridges nad workers!"
     exit 1
   fi
-  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $DOWNLOAD_COUNT_PER_BRIDGE)
+  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER)
 
   log "INFO" "REQUIREMENT 1: File size is ${SIZE}GB"
 
@@ -247,7 +247,7 @@ EOF
     for WORKER in $(seq 1 $WORKER_COUNT); do
       CLIENT=${CLIENTS[$(($i-1))]}
       BRIDGE=${BRIDGES[$(($i-1))]}
-      PREFIX="bridge$BRIDGE-worker$WORKER-size"
+      PREFIX="bridge$i-worker$WORKER-size"
       UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i-worker-$WORKER.log
       log "INFO" "Logfile will be written to client $CLIENT at $UPLOAD_LOGFILE"
       if $DRY_RUN;then
@@ -263,7 +263,7 @@ EOF
       CLIENT=${CLIENTS[$(($i-1))]} 
       BRIDGE=${BRIDGES[$(($i-1))]}
       DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i-worker-$WORKER.log
-      PREFIX="bridge$BRIDGE-worker$WORKER-size"
+      PREFIX="bridge$i-worker$WORKER-size"
       log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
       if $DRY_RUN;then
         log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE\""
