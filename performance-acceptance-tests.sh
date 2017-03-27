@@ -32,7 +32,7 @@ function log {
   LOG_DATE=$(date "+%Y-%m-%d-%H:%M:%S")
   LOG_LEVEL=$(printf "%8s" $1)
   LOG_MESSAGE=$2
-  WORKER=1
+  WORKER_COUNT=1
   echo -e "$LOG_DATE $LOG_LEVEL $LOG_MESSAGE" | tee -a $LOGFILE
 }
 
@@ -109,15 +109,15 @@ if [ -n "$BRIDGES" ];then
 
   NASBRIDGE_MOUNTPOINT=/mnt/nasbridge
 
-  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($UPLOAD_COUNT/$BRIDGE_COUNT/$WORKER_COUNT))
-  if [ $UPLOAD_COUNT != $(($UPLOAD_COUNT_PER_BRIDGE*$BRIDGE_COUNT*$WORKER_COUNT)) ];then
+  UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($UPLOAD_COUNT / $BRIDGE_COUNT / $WORKER_COUNT))
+  if [ $UPLOAD_COUNT != $(($UPLOAD_COUNT_PER_BRIDGE_PER_WORKER * $BRIDGE_COUNT * $WORKER_COUNT)) ];then
     log "ERROR" "Requested upload count cannot be equally distributed to all NAS Bridges and workers. Please specify an upload count which is a multiple of the number of bridges and workers!"
     exit 1
   fi
   UPLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(printf "%0${UPLOAD_DOWNLOAD_DIGIT_COUNT}d" $UPLOAD_COUNT_PER_BRIDGE)
 
-  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($DOWNLOAD_COUNT/$BRIDGE_COUNT/$WORKER_COUNT))
-  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE * $BRIDGE_COUNT)) ];then
+  DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER=$(($DOWNLOAD_COUNT / $BRIDGE_COUNT / $WORKER_COUNT))
+  if [ $DOWNLOAD_COUNT != $(($DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER * $BRIDGE_COUNT * $WORKER_COUNT)) ];then
     log "ERROR" "Requested download count cannot be equally distributed to all NAS Bridges and workers. Please specify a download count which is a multiple of the number of bridges nad workers!"
     exit 1
   fi
