@@ -208,9 +208,9 @@ TIMEFORMAT=%0R
         unset FILENAME
         while [ -z $FILENAME ];do
           if [ $COUNT -le $UPLOAD_COUNT ];then
-            FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
+            FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
           else
-            FILENAME=$(find $DOWNLOAD_SOURCE/${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
+            FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
           fi
           sleep 1
         done
