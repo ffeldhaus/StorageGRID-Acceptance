@@ -285,7 +285,7 @@ EOF
           BRIDGE=${BRIDGES[$(($i-1))]}
           UPLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-upload-bridge-$i-worker-$WORKER.log
           if [[ $(ssh $CLIENT cat $UPLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-            COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
+            COMPLETED_COUNT=$((COMPLETED_COUNT+1))
             log "INFO" "Upload of worker $WORKER to bridge $BRIDGE completed"
           fi
         done
@@ -305,7 +305,7 @@ EOF
           BRIDGE=${BRIDGES[$(($i-1))]}
           DOWNLOAD_LOGFILE=$OUTPUT_DIRECTORY/$DATE-download-bridge-$i-worker-$WORKER.log
           if [[ $(ssh $CLIENT cat $DOWNLOAD_LOGFILE | grep "FINISHED") == "FINISHED" ]]; then
-            COMPLETED_COUNT=$((COMPLETED_COUNT+$i))
+            COMPLETED_COUNT=$((COMPLETED_COUNT+1))
             log "INFO" "Download by worker $WORKER on client $CLIENT from bridge $BRIDGE completed"
           fi
         done
