@@ -170,7 +170,7 @@ TIMEFORMAT=%0R
     for COUNT in $(seq -w 1 $UPLOAD_COUNT );do 
       (
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting upload"
-        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${PREFIX}${SIZE}g${COUNT} bs=1024k count=${SIZE}k )
+        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${PREFIX}${SIZE}g${COUNT} bs=2048k count=$(($SIZE/2))k )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files uploaded"
       )
     done 2>&1
@@ -212,7 +212,7 @@ TIMEFORMAT=%0R
           else
             FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
           fi
-          sleep 1
+          sleep 10
         done
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
         ( set -x;dd if=$FILENAME of=/dev/null )
