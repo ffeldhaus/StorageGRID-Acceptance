@@ -175,7 +175,7 @@ TIMEFORMAT=%0R
     for COUNT in $(seq -w 1 $UPLOAD_COUNT );do 
       (
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting upload"
-        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${PREFIX}${SIZE}g${COUNT} count=${SIZE}k )
+        ( set -x;dd if=/dev/zero of=${UPLOAD_DESTINATION}/${PREFIX}${SIZE}g${COUNT} bs=1024k count=${SIZE}k )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files uploaded"
       )
     done 2>&1
