@@ -107,11 +107,6 @@ if [ -n "$BRIDGES" ];then
     exit 1
   fi
 
-  if [ $(( $(($SIZE / 2)) * 2)) != $SIZE ]; then
-    log "ERROR" "Size must be a multiple of 2"
-    exit 1
-  fi
-
   NASBRIDGE_MOUNTPOINT=/mnt/nasbridge
 
   UPLOAD_COUNT_PER_BRIDGE=$(($UPLOAD_COUNT / $BRIDGE_COUNT))
