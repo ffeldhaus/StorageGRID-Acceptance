@@ -212,7 +212,7 @@ TIMEFORMAT=%0R
       (
         unset FILENAME
         while [ -z $FILENAME ];do
-          if [[ $(date "+%M") =~ ^00|12|24|36|48$ ]]; do
+          if [[ $(date "+%M") =~ ^00|20|40$ ]]; do
             if [ $COUNT -le $UPLOAD_COUNT ];then
               FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
             else
