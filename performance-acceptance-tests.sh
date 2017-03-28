@@ -212,12 +212,14 @@ TIMEFORMAT=%0R
       (
         unset FILENAME
         while [ -z $FILENAME ];do
-          if [ $COUNT -le $UPLOAD_COUNT ];then
-            FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
-          else
-            FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
+          if [[ $(date "+%M") =~ ^00|12|24|36|48$ ]]; do
+            if [ $COUNT -le $UPLOAD_COUNT ];then
+              FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
+            else
+              FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
+            fi
+            sleep 10
           fi
-          sleep 10
         done
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
         ( set -x;dd if=$FILENAME of=/dev/null )
