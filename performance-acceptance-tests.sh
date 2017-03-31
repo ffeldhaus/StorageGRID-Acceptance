@@ -212,6 +212,7 @@ TIMEFORMAT=%0R
   time (
     # give uploads enough time to complete
     NEXT_START=$(( ($(date "+%M") + ($SIZE / 4) ) > 60 ? ($(date "+%M") - (60 - ($SIZE / 4) ) ) : ($(date "+%M") + ($SIZE / 4) ) ))
+    echo "Next download will start at $(date "+%H"):$NEXT_START"
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
         unset FILENAME
@@ -230,6 +231,7 @@ TIMEFORMAT=%0R
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
       )
       NEXT_START=$(( ( $NEXT_START + ($SIZE / 4) ) > 60 ? ( $NEXT_START - (60 - ($SIZE / 4) ) ) : ( $NEXT_START + ($SIZE / 4) ) ))
+      echo "Next download will start at $(date "+%H"):$NEXT_START"
     done 2>&1
     echo "FINISHED"
   )
