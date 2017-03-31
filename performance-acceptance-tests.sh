@@ -195,36 +195,41 @@ DOWNLOAD_COUNT=$1
 UPLOAD_COUNT=$2
 DOWNLOAD_SOURCE=$3
 PREFIX=$4
-SIZE=$5
-LOGFILE=$6
+WORKER_COUNT=$5
+SIZE=$6
+LOGFILE=$7
 
 echo "Download count: $DOWNLOAD_COUNT"
 echo "Upload count: $UPLOAD_COUNT"
 echo "Download source: $DOWNLOAD_SOURCE"
 echo "Prefix: $PREFIX"
+echo "Worker count: $WORKER_COUNT"
 echo "File size: $SIZE"
 echo "Logfile: $LOGFILE"
 
 TIMEFORMAT=%0R
 (
   time (
+    # give uploads enough time to complete
+    NEXT_START=$(( ($(date "+%M") + ($SIZE / 4) ) > 60 ? ($(date "+%M") - (60 - ($SIZE / 4) ) ) : ($(date "+%M") + ($SIZE / 4) ) ))
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
       (
         unset FILENAME
         while [ -z $FILENAME ];do
-          if [[ $(date "+%M") =~ ^00|20|40$ ]]; then
-            if [ $COUNT -le $UPLOAD_COUNT ];then
+          if [ $COUNT -le $UPLOAD_COUNT ];then
+            if [[ $(date "+%M") = $NEXT_START ]]; then
               FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
-            else
-              FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 10)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
             fi
-            sleep 10
+          else
+            FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 3)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
           fi
+          sleep 10
         done
         echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
         ( set -x;dd if=$FILENAME of=/dev/null )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
       )
+      NEXT_START=$(( ($(date "+%M") + ($SIZE / 4) ) > 60 ? ($(date "+%M") - (60 - ($SIZE / 4) ) ) : ($(date "+%M") + ($SIZE / 4) ) ))
     done 2>&1
     echo "FINISHED"
   )
@@ -273,9 +278,9 @@ EOF
       PREFIX="bridge$i-worker$WORKER-size"
       log "INFO" "Logfile will be written to client $CLIENT at $DOWNLOAD_LOGFILE"
       if $DRY_RUN;then
-        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE\""
+        log "DRY-RUN" "ssh -f $CLIENT \"screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $WORKER_COUNT $SIZE $DOWNLOAD_LOGFILE\""
       else
-        ssh -f $CLIENT "screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $SIZE $DOWNLOAD_LOGFILE"
+        ssh -f $CLIENT "screen -dm -S download-bridge-$i-worker-$WORKER /tmp/download-files.sh $DOWNLOAD_COUNT_PER_BRIDGE_PER_WORKER $UPLOAD_COUNT_PER_BRIDGE_PER_WORKER $NASBRIDGE_MOUNTPOINT$i/$TEST_FOLDER $PREFIX $WORKER_COUNT $SIZE $DOWNLOAD_LOGFILE"
       fi
     done
   done
@@ -423,7 +428,7 @@ TIMEFORMAT=%0R
       (
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        dd if=/dev/zero bs=1024k count=${SIZE}k | aws s3 cp - s3://$UPLOAD_DESTINATION/${SIZE}g${COUNT} --expected-size $(($SIZE * 1024 * 1024 * 1024)) --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 | grep -v InsecureRequestWarning
+        dd if=/dev/zero bs=1024k count=${SIZE}k | aws s3 cp - s3://$UPLOAD_DESTINATION/${SIZE}g${COUNT} --expected-size $(($SIZE * 1024 * 1024 * 1024)) --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null
         echo "$COUNT objects uploaded"
       )
     done 2>&1
@@ -456,7 +461,7 @@ TIMEFORMAT=%0R
         OBJECT=$(aws s3 ls $DOWNLOAD_SOURCE --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>/dev/null | awk '{print $4}'  | shuf -n1)
         date '+%Y-%m-%d %H:%M:%S'
         set -x
-        aws s3 cp s3://$DOWNLOAD_SOURCE/$OBJECT - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null | tee | grep -v InsecureRequestWarning
+        aws s3 cp s3://$DOWNLOAD_SOURCE/$OBJECT - --endpoint-url $S3_ENDPOINT --no-verify-ssl 2>&1 > /dev/null
         echo "$COUNT objects downloaded"
       )
     done 2>&1
