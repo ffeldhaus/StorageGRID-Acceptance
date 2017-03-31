@@ -219,7 +219,7 @@ TIMEFORMAT=%0R
         unset FILENAME
         while [ -z $FILENAME ];do
           if [ $COUNT -le $UPLOAD_COUNT ];then
-            if [[ $(date "+%M") -ge $NEXT_START ]]; then
+            if [[ $((10#$(date "+%M") )) -ge $((10#$NEXT_START)) ]]; then
               FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
             fi
           else
