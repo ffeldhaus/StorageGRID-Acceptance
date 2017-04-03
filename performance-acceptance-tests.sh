@@ -222,7 +222,7 @@ TIMEFORMAT=%0R
           if [ $COUNT -le $UPLOAD_COUNT ];then
             if [[ "$((10#$(date "+%M") ))" -eq "$((10#$NEXT_START))" ]]; then
               FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
-            elif [[ "$((10#$(date "+%M") ))" -ge "$((10#$NEXT_START))" ]]
+            elif [[ "$((10#$(date "+%M") ))" -ge "$((10#$NEXT_START))" ]]; then
               echo "File $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} not yet ready"
               NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
               NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
