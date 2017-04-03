@@ -238,10 +238,12 @@ TIMEFORMAT=%0R
       echo "$(date '+%Y-%m-%d %H:%M:%S') Starting download"
       ( set -x;dd if=$FILENAME of=/dev/null )
       echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
-      NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START_HOUR == 10#$(date "+%H") ? $(date "+%H") + 1 : $(date "+%H") ) : $(date "+%H") ))
-      NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
-      NEXT_START=$(printf "%02d" $NEXT_START)
-      echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
+      if [ $COUNT -le $UPLOAD_COUNT ];then
+        NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START_HOUR == 10#$(date "+%H") ? $(date "+%H") + 1 : $(date "+%H") ) : $(date "+%H") ))
+        NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
+        NEXT_START=$(printf "%02d" $NEXT_START)
+        echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
+      fi
     done 2>&1
     echo "FINISHED"
   )
