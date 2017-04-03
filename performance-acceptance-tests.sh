@@ -211,7 +211,7 @@ TIMEFORMAT=%0R
 (
   time (
     # give uploads enough time to complete
-    NEXT_START_HOUR=$(( ( (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$(date "+%H") + 1 ) : 10#$(date "+%H") ))
+    NEXT_START_HOUR=$(( (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$(date "+%H") + 1 ) : 10#$(date "+%H") ))
     NEXT_START=$(( (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? (10#$(date "+%M") - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) ))
     NEXT_START=$(printf "%02d" $NEXT_START)
     echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
