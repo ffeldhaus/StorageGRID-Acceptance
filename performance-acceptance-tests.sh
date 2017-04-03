@@ -211,11 +211,11 @@ TIMEFORMAT=%0R
 (
   time (
     # give uploads enough time to complete
-    NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
-    NEXT_START=$(( ($(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ($(date "+%M") - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ($(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) ))
+    NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
+    NEXT_START=$(( ($(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ($(date "+%M") - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ($(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) ))
     NEXT_START=$(printf "%02d" $NEXT_START)
     echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
-    for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do 
+    for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do
       (
         unset FILENAME
         while [ -z $FILENAME ];do
@@ -224,10 +224,12 @@ TIMEFORMAT=%0R
               FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
             elif [[ "$((10#$(date "+%M") ))" -ge "$((10#$NEXT_START))" ]]; then
               echo "File $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} not yet ready"
-              NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
-              NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
+              NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
+              NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
               NEXT_START=$(printf "%02d" $NEXT_START)
+              SLEEP_TIME=$(( ( $NEXT_START - $(date "+%M") ) * 60 - $(date "+%S") ))
               echo "Next download attempt will start at $NEXT_START_HOUR:$NEXT_START"
+              sleep $SLEEP_TIME
             fi
           else
             FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g$(seq -w $(printf "%0${#UPLOAD_COUNT}d" $((10#$UPLOAD_COUNT - 3)) ) $UPLOAD_COUNT | shuf -n1) -not -size -${SIZE}G )
@@ -238,8 +240,8 @@ TIMEFORMAT=%0R
         ( set -x;dd if=$FILENAME of=/dev/null )
         echo "$(date '+%Y-%m-%d %H:%M:%S') $COUNT files downloaded"
       )
-      NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
-      NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) > 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
+      NEXT_START_HOUR=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $(date "+%H") + 1 ) : $(date "+%H") ))
+      NEXT_START=$(( ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( $NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( $NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
       NEXT_START=$(printf "%02d" $NEXT_START)
       echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
     done 2>&1
