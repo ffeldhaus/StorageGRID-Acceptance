@@ -214,7 +214,7 @@ TIMEFORMAT=%0R
     NEXT_START_HOUR=$(( (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$(date "+%H") + 1 ) : 10#$(date "+%H") ))
     NEXT_START=$(( (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? (10#$(date "+%M") - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : (10#$(date "+%M") + ($SIZE / 2 / $WORKER_COUNT) ) ))
     NEXT_START=$(printf "%02d" $NEXT_START)
-    echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Next download will start at $NEXT_START_HOUR:$NEXT_START"
     for COUNT in $(seq -w 1  $DOWNLOAD_COUNT);do
       unset FILENAME
       while [ -z $FILENAME ];do
@@ -223,10 +223,10 @@ TIMEFORMAT=%0R
             FILENAME=$(find $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} -not -size -${SIZE}G 2> /dev/null)
           elif [[ "$((10#$(date "+%M") ))" -ge "$((10#$NEXT_START))" ]]; then
             echo "File $DOWNLOAD_SOURCE/${PREFIX}${SIZE}g${COUNT} not yet ready"
+            SLEEP_TIME=$(( ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) - 10#$(date "+%M") ) * 60 - 10#$(date "+%S") ))
             NEXT_START_HOUR=$(( ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$(date "+%H") + 1 ) : 10#$(date "+%H") ))
             NEXT_START=$(( ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
             NEXT_START=$(printf "%02d" $NEXT_START)
-            SLEEP_TIME=$(( ( 10#$NEXT_START - 10#$(date "+%M") ) * 60 - 10#$(date "+%S") ))
             echo "Next download attempt will start at $NEXT_START_HOUR:$NEXT_START"
             sleep $SLEEP_TIME
           fi
@@ -242,7 +242,7 @@ TIMEFORMAT=%0R
         NEXT_START_HOUR=$(( ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$NEXT_START_HOUR == 10#$(date "+%H") ? 10#$(date "+%H") + 1 : 10#$(date "+%H") ) : 10#$(date "+%H") ))
         NEXT_START=$(( ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) >= 60 ? ( 10#$NEXT_START - (60 - ($SIZE / 2 / $WORKER_COUNT) ) ) : ( 10#$NEXT_START + ($SIZE / 2 / $WORKER_COUNT) ) ))
         NEXT_START=$(printf "%02d" $NEXT_START)
-        echo "Next download will start at $NEXT_START_HOUR:$NEXT_START"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Next download will start at $NEXT_START_HOUR:$NEXT_START"
       fi
     done 2>&1
     echo "FINISHED"
